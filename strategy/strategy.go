@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/nadoo/glider/common/log"
+	"github.com/nadoo/glider/common/timewindow"
 	"github.com/nadoo/glider/proxy"
 )
 
@@ -26,6 +27,8 @@ type Config struct {
 	DialTimeout       int
 	RelayTimeout      int
 	IntFace           string
+	ForwardTime       []timewindow.TimeWindow
+	RejectTime        []timewindow.TimeWindow
 }
 
 // forwarder slice orderd by priority
@@ -37,13 +40,15 @@ func (p priSlice) Swap(i, j int)      { p[i], p[j] = p[j], p[i] }
 
 // Proxy is base proxy struct.
 type Proxy struct {
-	config   *Config
-	fwdrs    priSlice
-	avail    []*Forwarder // available forwarders
-	mu       sync.RWMutex
-	index    uint32
-	priority uint32
-	next     func(addr string) *Forwarder
+	name       string
+	config     *Config
+	fwdrs      priSlice
+	avail      []*Forwarder // available forwarders
+	rejectFwdr *Forwarder
+	mu         sync.RWMutex
+	index      uint32
+	priority   uint32
+	next       func(addr string) *Forwarder
 }
 
 // NewProxy returns a new strategy proxy.
@@ -71,7 +76,13 @@ func NewProxy(name string, s []string, c *Config) *Proxy {
 
 // newProxy returns a new Proxy.
 func newProxy(name string, fwdrs []*Forwarder, c *Config) *Proxy {
-	p := &Proxy{fwdrs: fwdrs, config: c}
+	log.F("strategy.newProxy: " + name)
+	rejectFwdr, err := ForwarderFromURL("reject://", "", 0, 0)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	p := &Proxy{name: name, fwdrs: fwdrs, config: c, rejectFwdr: rejectFwdr}
 	sort.Sort(p.fwdrs)
 
 	p.init()
@@ -119,6 +130,37 @@ func (p *Proxy) DialUDP(network, addr string) (pc net.PacketConn, writeTo net.Ad
 
 // NextDialer returns the next dialer.
 func (p *Proxy) NextDialer(dstAddr string) proxy.Dialer {
+	allowed := false
+	now := time.Now()
+
+	if len(p.config.ForwardTime) == 0 {
+		// Default is to allow
+		allowed = true
+	} else {
+		for _, forwardTime := range p.config.ForwardTime {
+			if forwardTime.Contains(now) {
+				allowed = true
+				break
+			}
+		}
+	}
+
+	if !allowed {
+		log.F("[%s] NOT ALLOWED [%s]", p.name, dstAddr)
+	} else {
+		for _, rejectTime := range p.config.RejectTime {
+			if rejectTime.Contains(now) {
+				log.F("[%s] REJECTED [%s] [%s]", p.name, rejectTime.String(), dstAddr)
+				allowed = false
+				break
+			}
+		}
+	}
+
+	if !allowed {
+		return p.rejectFwdr
+	}
+
 	p.mu.RLock()
 	defer p.mu.RUnlock()
 

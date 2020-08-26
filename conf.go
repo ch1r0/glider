@@ -6,14 +6,13 @@ import (
 	"os"
 	"path"
 
-	"github.com/nadoo/conflag"
-
+	"github.com/nadoo/glider/common/gliderflag"
 	"github.com/nadoo/glider/dns"
 	"github.com/nadoo/glider/rule"
 	"github.com/nadoo/glider/strategy"
 )
 
-var flag = conflag.New()
+var flag *gliderflag.GliderFlag = gliderflag.New()
 
 var conf struct {
 	Verbose bool
@@ -60,6 +59,9 @@ func confInit() {
 	flag.IntVar(&conf.DNSConfig.MinTTL, "dnsminttl", 0, "minimum TTL value for entries in the CACHE(seconds)")
 	flag.StringSliceUniqVar(&conf.DNSConfig.Records, "dnsrecord", nil, "custom dns record, format: domain/ip")
 
+	flag.TimeWindowSliceVar(&conf.StrategyConfig.ForwardTime, "forwardtime", nil, "Forward requests during the time-window. Format: DDD HH:MM HH:MM. E.g. THU 08:00 22:00. DDD can also be 1-5, 6-7, etc. NOTE: default is the whole day.")
+	flag.TimeWindowSliceVar(&conf.StrategyConfig.RejectTime, "rejecttime", nil, "Reject requests during the time-window. Format: DDD HH:MM HH:MM. E.g. THU 08:00 22:00. DDD can also be 1-5, 6-7, etc. NOTE: rejecttime overrides forwardtime")
+
 	flag.Usage = usage
 	err := flag.Parse()
 	if err != nil {
@@ -103,6 +105,12 @@ func confInit() {
 		}
 	}
 
+	for _, timeWindow := range conf.StrategyConfig.ForwardTime {
+		fmt.Println("forwardtime = " + timeWindow.String())
+	}
+	for _, timeWindow := range conf.StrategyConfig.RejectTime {
+		fmt.Println("rejecttime = " + timeWindow.String())
+	}
 }
 
 func usage() {

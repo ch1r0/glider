@@ -81,6 +81,7 @@ func (s *HTTP) servRequest(req *request, c *conn.Conn) {
 		}
 	}
 
+	log.F("[servRequest] " + req.method + " " + req.uri)
 	if req.method == "CONNECT" {
 		s.servHTTPS(req, c)
 		return
@@ -111,7 +112,7 @@ func (s *HTTP) servHTTPS(r *request, c net.Conn) {
 func (s *HTTP) servHTTP(req *request, c *conn.Conn) {
 	rc, dialer, err := s.proxy.Dial("tcp", req.target)
 	if err != nil {
-		fmt.Fprintf(c, "%s 502 ERROR\r\n\r\n", req.proto)
+		fmt.Fprintf(c, "%s 502 ERROR\r\n\r\n<html><head><title>502 ERROR</title></head><body><h1>%v</h1></body></html>\r\n", req.proto, err)
 		log.F("[http] %s <-> %s via %s, error in dial: %v", c.RemoteAddr(), req.target, dialer.Addr(), err)
 		return
 	}

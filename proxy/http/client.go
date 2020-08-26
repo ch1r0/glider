@@ -35,6 +35,7 @@ func (s *HTTP) Dial(network, addr string) (net.Conn, error) {
 
 	buf := pool.GetWriteBuffer()
 	buf.WriteString("CONNECT " + addr + " HTTP/1.1\r\n")
+	log.F("[" + s.addr + "] >> " + buf.String())
 	buf.WriteString("Host: " + addr + "\r\n")
 	buf.WriteString("Proxy-Connection: Keep-Alive\r\n")
 
@@ -58,6 +59,7 @@ func (s *HTTP) Dial(network, addr string) (net.Conn, error) {
 		return c, err
 	}
 
+	log.F("[" + s.addr + "] << " + line)
 	_, code, _, ok := parseStartLine(line)
 	if ok && code == "200" {
 		tpr.ReadMIMEHeader()

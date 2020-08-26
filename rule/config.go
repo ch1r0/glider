@@ -6,7 +6,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/nadoo/conflag"
+	"github.com/nadoo/glider/common/gliderflag"
 
 	"github.com/nadoo/glider/strategy"
 )
@@ -30,7 +30,7 @@ type Config struct {
 func NewConfFromFile(ruleFile string) (*Config, error) {
 	p := &Config{Name: ruleFile}
 
-	f := conflag.NewFromFile("rule", ruleFile)
+	f := gliderflag.NewFromFile("rule", ruleFile)
 	f.StringSliceUniqVar(&p.Forward, "forward", nil, "forward url, format: SCHEME://[USER|METHOD:PASSWORD@][HOST]:PORT?PARAMS[,SCHEME://[USER|METHOD:PASSWORD@][HOST]:PORT?PARAMS]")
 	f.StringVar(&p.StrategyConfig.Strategy, "strategy", "rr", "forward strategy, default: rr")
 	f.StringVar(&p.StrategyConfig.CheckWebSite, "checkwebsite", "www.apple.com", "proxy check HTTP(NOT HTTPS) website address, format: HOST[:PORT], default port: 80")
@@ -49,12 +49,21 @@ func NewConfFromFile(ruleFile string) (*Config, error) {
 	f.StringSliceUniqVar(&p.IP, "ip", nil, "ip")
 	f.StringSliceUniqVar(&p.CIDR, "cidr", nil, "cidr")
 
+	f.TimeWindowSliceVar(&p.StrategyConfig.ForwardTime, "forwardtime", nil, "Forward requests during the time-window. Format: DDD HH:MM HH:MM. E.g. THU 08:00 22:00. DDD can also be 1-5, 6-7, etc. NOTE: default is the whole day.")
+	f.TimeWindowSliceVar(&p.StrategyConfig.RejectTime, "rejecttime", nil, "Reject requests during the time-window. Format: DDD HH:MM HH:MM. E.g. THU 08:00 22:00. DDD can also be 1-5, 6-7, etc. NOTE: rejecttime overrides forwardtime")
+
 	err := f.Parse()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "ERROR: %s\n", err)
 		return nil, err
 	}
 
+	for _, timeWindow := range p.StrategyConfig.ForwardTime {
+		fmt.Println("[" + ruleFile + "] forwardtime = " + timeWindow.String())
+	}
+	for _, timeWindow := range p.StrategyConfig.RejectTime {
+		fmt.Println("[" + ruleFile + "] rejecttime = " + timeWindow.String())
+	}
 	return p, err
 }
 
