@@ -10,8 +10,10 @@ import (
 	"github.com/nadoo/glider/common/log"
 	"github.com/nadoo/glider/dns"
 	"github.com/nadoo/glider/ipset"
+	"github.com/nadoo/glider/primarydomains"
 	"github.com/nadoo/glider/proxy"
 	"github.com/nadoo/glider/rule"
+	"github.com/nadoo/glider/stats"
 	"github.com/nadoo/glider/strategy"
 
 	// comment out the protocol you don't need to make the compiled binary smaller.
@@ -47,8 +49,12 @@ func main() {
 		}
 	}
 
+	// stats module
+	domainLookup := primarydomains.NewLookup(conf.tlds, conf.PrimaryDomainCacheFile)
+	stats := stats.NewStats(conf.StatsFile, domainLookup)
+
 	// global rule proxy
-	p := rule.NewProxy(conf.rules, strategy.NewProxy("default", conf.Forward, &conf.StrategyConfig))
+	p := rule.NewProxy(conf.rules, strategy.NewProxy("default", conf.Forward, &conf.StrategyConfig, stats), stats)
 
 	// ipset manager
 	ipsetM, _ := ipset.NewManager(conf.rules)

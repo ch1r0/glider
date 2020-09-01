@@ -7,6 +7,7 @@ import (
 
 	"github.com/nadoo/glider/common/log"
 	"github.com/nadoo/glider/proxy"
+	"github.com/nadoo/glider/stats"
 	"github.com/nadoo/glider/strategy"
 )
 
@@ -21,11 +22,11 @@ type Proxy struct {
 }
 
 // NewProxy returns a new rule proxy.
-func NewProxy(rules []*Config, proxy *strategy.Proxy) *Proxy {
+func NewProxy(rules []*Config, proxy *strategy.Proxy, stats *stats.Stats) *Proxy {
 	rd := &Proxy{proxy: proxy}
 
 	for _, r := range rules {
-		sd := strategy.NewProxy(r.Name, r.Forward, &r.StrategyConfig)
+		sd := strategy.NewProxy(r.Name, r.Forward, &r.StrategyConfig, stats)
 		rd.proxies = append(rd.proxies, sd)
 
 		for _, domain := range r.Domain {

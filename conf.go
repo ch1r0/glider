@@ -29,6 +29,12 @@ var conf struct {
 	DNSConfig dns.Config
 
 	rules []*rule.Config
+
+	TldsConfFile string
+	tlds         []string
+
+	PrimaryDomainCacheFile string
+	StatsFile              string
 }
 
 func confInit() {
@@ -61,6 +67,10 @@ func confInit() {
 
 	flag.TimeWindowSliceVar(&conf.StrategyConfig.ForwardTime, "forwardtime", nil, "Forward requests during the time-window. Format: DDD HH:MM HH:MM. E.g. THU 08:00 22:00. DDD can also be 1-5, 6-7, etc. NOTE: default is the whole day.")
 	flag.TimeWindowSliceVar(&conf.StrategyConfig.RejectTime, "rejecttime", nil, "Reject requests during the time-window. Format: DDD HH:MM HH:MM. E.g. THU 08:00 22:00. DDD can also be 1-5, 6-7, etc. NOTE: rejecttime overrides forwardtime")
+
+	flag.StringVar(&conf.TldsConfFile, "tlds-conf", "", "Path to top-level domains config file used by stats module")
+	flag.StringVar(&conf.PrimaryDomainCacheFile, "primarydomaincachefile", "glider.primarydomains.json", "Path to primary domain lookup cache used by stats module")
+	flag.StringVar(&conf.StatsFile, "statsfile", "glider.stats.json", "Path to stats file")
 
 	flag.Usage = usage
 	err := flag.Parse()
@@ -110,6 +120,29 @@ func confInit() {
 	}
 	for _, timeWindow := range conf.StrategyConfig.RejectTime {
 		fmt.Println("rejecttime = " + timeWindow.String())
+	}
+
+	// primary domain cache file
+	if conf.PrimaryDomainCacheFile != "" {
+		if !path.IsAbs(conf.PrimaryDomainCacheFile) {
+			conf.PrimaryDomainCacheFile = path.Join(flag.ConfDir(), conf.PrimaryDomainCacheFile)
+		}
+	}
+
+	// stats file
+	if conf.StatsFile != "" {
+		if !path.IsAbs(conf.StatsFile) {
+			conf.StatsFile = path.Join(flag.ConfDir(), conf.StatsFile)
+		}
+	}
+
+	if conf.TldsConfFile != "" {
+		if !path.IsAbs(conf.TldsConfFile) {
+			conf.TldsConfFile = path.Join(flag.ConfDir(), conf.TldsConfFile)
+		}
+
+		tldsflag := gliderflag.NewFromFile("tlds", conf.TldsConfFile)
+		tldsflag.StringSliceUniqVar(&conf.tlds, "domain", nil, "domain")
 	}
 }
 

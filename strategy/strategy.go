@@ -14,6 +14,7 @@ import (
 	"github.com/nadoo/glider/common/log"
 	"github.com/nadoo/glider/common/timewindow"
 	"github.com/nadoo/glider/proxy"
+	"github.com/nadoo/glider/stats"
 )
 
 // Config is strategy config struct.
@@ -49,10 +50,11 @@ type Proxy struct {
 	index      uint32
 	priority   uint32
 	next       func(addr string) *Forwarder
+	stats      *stats.Stats
 }
 
 // NewProxy returns a new strategy proxy.
-func NewProxy(name string, s []string, c *Config) *Proxy {
+func NewProxy(name string, s []string, c *Config, stats *stats.Stats) *Proxy {
 	var fwdrs []*Forwarder
 	for _, chain := range s {
 		fwdr, err := ForwarderFromURL(chain, c.IntFace,
@@ -71,18 +73,18 @@ func NewProxy(name string, s []string, c *Config) *Proxy {
 		c.Strategy = "rr"
 	}
 
-	return newProxy(name, fwdrs, c)
+	return newProxy(name, fwdrs, c, stats)
 }
 
 // newProxy returns a new Proxy.
-func newProxy(name string, fwdrs []*Forwarder, c *Config) *Proxy {
+func newProxy(name string, fwdrs []*Forwarder, c *Config, stats *stats.Stats) *Proxy {
 	log.F("strategy.newProxy: " + name)
 	rejectFwdr, err := ForwarderFromURL("reject://", "", 0, 0)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	p := &Proxy{name: name, fwdrs: fwdrs, config: c, rejectFwdr: rejectFwdr}
+	p := &Proxy{name: name, fwdrs: fwdrs, config: c, rejectFwdr: rejectFwdr, stats: stats}
 	sort.Sort(p.fwdrs)
 
 	p.init()
